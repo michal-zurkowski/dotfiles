@@ -1,5 +1,5 @@
 [submodule "opencode"]
-	path = opencode_pkg/.config/opencode
+	path = opencode/.config/opencode
 	url = git@github.com:michal-zurkowski/opencode.git
 [submodule "nixos"]
 	path = nixos
