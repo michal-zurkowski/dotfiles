@@ -43,11 +43,17 @@ export VISUAL="nvim"
 export EDITOR="nvim"
 export BROWSER="google-chrome"
 
+# Add ssh auto-sock so we can allow 5min lifetime of key access
+export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket"
+
+
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
 # ──────────────────────────────────────────────
 # Aliases
 # ──────────────────────────────────────────────
+alias vim='nvim'
+
 alias grep='grep --color=auto'
 alias egrep='grep -E --color=auto'
 alias fgrep='grep -F --color=auto'
@@ -174,9 +180,12 @@ if command -v fzf &>/dev/null; then
     }
 fi
 
+export NODE_PATH=/usr/lib/node_modules
+
 # ──────────────────────────────────────────────
 # Direnv - auto-load .envrc / nix flakes per dir
 # ──────────────────────────────────────────────
 if command -v direnv &>/dev/null; then
     eval "$(direnv hook bash)"
 fi
+
