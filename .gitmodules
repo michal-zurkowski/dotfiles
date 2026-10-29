@@ -4,3 +4,6 @@
 [submodule "nixos"]
 	path = nixos
 	url = git@github.com:michal-zurkowski/nixos.git
+[submodule "pi"]
+	path = pi
+	url = git@github.com:michal-zurkowski/pi.git
