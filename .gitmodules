@@ -1,6 +1,3 @@
-[submodule "opencode"]
-	path = opencode/.config/opencode
-	url = git@github.com:michal-zurkowski/opencode.git
 [submodule "nixos"]
 	path = nixos
 	url = git@github.com:michal-zurkowski/nixos.git

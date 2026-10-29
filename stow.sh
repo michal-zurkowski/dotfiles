@@ -3,7 +3,7 @@
 set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
-PACKAGES=(bash nvim opencode tmux)
+PACKAGES=(bash nvim pi tmux)
 
 # ──────────────────────────────────────────────
 # Dependencies the bash config benefits from
@@ -82,7 +82,7 @@ usage() {
     echo "Options:"
     echo "  --bash       Stow bash config"
     echo "  --nvim       Stow nvim config"
-    echo "  --opencode   Stow opencode config"
+    echo "  --pi         Stow pi config"
     echo "  --tmux       Stow tmux config"
     echo "  --all        Stow all packages"
     echo "  -h, --help   Show this help"
@@ -94,9 +94,15 @@ stow_pkg() {
         echo "WARNING: package dir '$pkg' not found, skipping"
         return
     fi
+    local extra=()
+    # pi writes runtime state (auth.json, trust.json, sessions/) into
+    # ~/.pi/agent. Without --no-folding stow would symlink the whole ~/.pi tree
+    # back into this repo and that state would land in git.
+    [[ "$pkg" == "pi" ]] && extra+=(--no-folding)
+
     echo "Stowing $pkg..."
     cd "$DOTFILES_DIR"
-    stow -t "$HOME" "$pkg"
+    stow "${extra[@]}" -t "$HOME" "$pkg"
 }
 
 selected=()
@@ -105,7 +111,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --bash)      selected+=(bash) ;;
         --nvim)      selected+=(nvim) ;;
-        --opencode)  selected+=(opencode) ;;
+        --pi)        selected+=(pi) ;;
         --tmux)      selected+=(tmux) ;;
         --all)       selected=("${PACKAGES[@]}") ;;
         -h|--help)   usage; exit 0 ;;
