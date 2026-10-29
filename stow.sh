@@ -175,7 +175,8 @@ physical() {
 }
 
 # Walks package dir $1 against target dir $2, appending planned actions to
-# PLAN ("mkdir\t<dir>" / "link\t<src>\t<dst>") and problems to CONFLICTS.
+# PLAN ("mkdir\t<dir>" / "link\t<src>\t<dst>") and paths in the way to
+# CONFLICTS.
 plan_dir() {
     local src_dir="$1" dst_dir="$2" rel_dir="$3" entry name rel src dst
     for entry in "$src_dir"/* "$src_dir"/.*; do
@@ -191,11 +192,11 @@ plan_dir() {
             if [[ "$(readlink -f "$dst")" == "$(readlink -f "$src")" ]]; then
                 continue
             fi
-            CONFLICTS+=("$dst is a symlink to $(readlink "$dst")")
+            CONFLICTS+=("$dst")
         elif [[ -d "$src" && ! -L "$src" && -d "$dst" ]]; then
             plan_dir "$src" "$dst" "$rel"
         elif [[ -e "$dst" ]]; then
-            CONFLICTS+=("$dst already exists and is not managed by this repo")
+            CONFLICTS+=("$dst")
         elif [[ -d "$src" && ! -L "$src" && "$NO_FOLDING" == 1 ]]; then
             PLAN+=("mkdir"$'\t'"$dst")
             plan_dir "$src" "$dst" "$rel"
@@ -205,20 +206,43 @@ plan_dir() {
     done
 }
 
-fallback_stow_pkg() {
-    local pkg="$1"
+plan_pkg() {
     local pkg_dir
-    pkg_dir="$(cd "$DOTFILES_DIR/$pkg" && pwd -P)"
+    pkg_dir="$(cd "$DOTFILES_DIR/$1" && pwd -P)"
     PLAN=() CONFLICTS=()
     load_ignore "$pkg_dir"
     plan_dir "$pkg_dir" "$HOME" ""
+}
 
-    if [[ ${#CONFLICTS[@]} -gt 0 ]]; then
-        echo "ERROR: not stowing $pkg, conflicts found:"
-        printf '  %s\n' "${CONFLICTS[@]}"
+# Offers to move every path in CONFLICTS aside so the package can be linked.
+# A fresh system almost always ships its own ~/.bashrc.
+backup_conflicts() {
+    local pkg="$1" suffix dst answer
+    suffix=".bak.$(date +%Y%m%d-%H%M%S)"
+    echo "Existing files are in the way of $pkg:"
+    for dst in "${CONFLICTS[@]}"; do
+        if [[ -L "$dst" ]]; then
+            echo "  $dst (symlink to $(readlink "$dst"))"
+        else
+            echo "  $dst"
+        fi
+    done
+    read -rp "Move them to <name>$suffix and link $pkg? [y/N] " answer
+    if [[ ! "$answer" =~ ^[Yy]$ ]]; then
+        echo "ERROR: not stowing $pkg"
         return 1
     fi
+    for dst in "${CONFLICTS[@]}"; do
+        if [[ -e "$dst$suffix" || -L "$dst$suffix" ]]; then
+            echo "ERROR: $dst$suffix already exists, not stowing $pkg"
+            return 1
+        fi
+        mv "$dst" "$dst$suffix"
+        echo "  moved $dst -> $dst$suffix"
+    done
+}
 
+apply_plan() {
     local action kind src dst link_dir
     for action in "${PLAN[@]}"; do
         IFS=$'\t' read -r kind src dst <<<"$action"
@@ -241,16 +265,24 @@ stow_pkg() {
         return
     fi
     local extra=()
+    NO_FOLDING=0
     # pi writes runtime state (auth.json, trust.json, sessions/) into
     # ~/.pi/agent. Without --no-folding stow would symlink the whole ~/.pi tree
     # back into this repo and that state would land in git.
-    [[ "$pkg" == "pi" ]] && extra+=(--no-folding)
+    if [[ "$pkg" == "pi" ]]; then
+        extra+=(--no-folding)
+        NO_FOLDING=1
+    fi
 
     echo "Stowing $pkg..."
+    plan_pkg "$pkg"
+    if [[ ${#CONFLICTS[@]} -gt 0 ]]; then
+        backup_conflicts "$pkg" || return 1
+        plan_pkg "$pkg"
+    fi
+
     if [[ "$USE_FALLBACK" == 1 ]]; then
-        NO_FOLDING=0
-        [[ ${#extra[@]} -gt 0 ]] && NO_FOLDING=1
-        fallback_stow_pkg "$pkg"
+        apply_plan
         return
     fi
     cd "$DOTFILES_DIR"
