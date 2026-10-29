@@ -1,6 +1,10 @@
 [submodule "nixos"]
 	path = nixos
 	url = git@github.com:michal-zurkowski/nixos.git
+	branch = main
+	ignore = all
 [submodule "pi"]
 	path = pi
 	url = git@github.com:michal-zurkowski/pi.git
+	branch = main
+	ignore = all
